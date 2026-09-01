@@ -1,0 +1,377 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CHRONOVA — Global Time, Weather, News, and Intelligence</title>
+<meta name="description" content="Global time, weather, news, and intelligence in one live dashboard." />
+<meta name="theme-color" content="#05070d" />
+<link rel="manifest" href="manifest.webmanifest" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="style.css?v=20260901-readable-reference-blue-4" />
+</head>
+<body>
+
+<!-- ================= BACKGROUND LAYER ================= -->
+<div class="bg-layer" aria-hidden="true">
+  <div class="bg-grid"></div>
+  <div class="bg-glow bg-glow--a"></div>
+  <div class="bg-glow bg-glow--b"></div>
+  <canvas id="starfield"></canvas>
+</div>
+
+<div class="app">
+
+  <!-- ================= HEADER ================= -->
+  <header class="header">
+    <div class="header__brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg class="brand-logo" viewBox="0 0 64 64" width="34" height="34" fill="none" role="img">
+          <defs>
+            <linearGradient id="chronova-ring" x1="10" y1="9" x2="54" y2="56" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#C084FC"/>
+              <stop offset="0.52" stop-color="#7C3AED"/>
+              <stop offset="1" stop-color="#A78BFA"/>
+            </linearGradient>
+            <linearGradient id="chronova-hand" x1="31" y1="16" x2="42" y2="39" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#F8FAFC"/>
+              <stop offset="1" stop-color="#BAE6FD"/>
+            </linearGradient>
+          </defs>
+          <circle cx="32" cy="32" r="22" stroke="url(#chronova-ring)" stroke-width="4.5"/>
+          <path d="M20.2 32H44M32 10.5c6.8 6 10.2 13.2 10.2 21.5S38.8 47.5 32 53.5C25.2 47.5 21.8 40.3 21.8 32S25.2 16.5 32 10.5Z" stroke="#DDD6FE" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+          <path d="M32 18v15l10.5 6" stroke="url(#chronova-hand)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M47.8 16.2A22 22 0 0 0 16.2 47.8" stroke="#FACC15" stroke-width="4.5" stroke-linecap="round"/>
+          <circle cx="32" cy="32" r="4.2" fill="#F8FAFC"/>
+          <circle cx="49.4" cy="14.6" r="3.2" fill="#FACC15"/>
+        </svg>
+      </span>
+      <div class="brand-text">
+        <h1>CHRONOVA</h1>
+        <p>Global Time • Weather • News • Intelligence</p>
+      </div>
+    </div>
+
+    <div class="header__search">
+      <label class="visually-hidden" for="search-input">Search city, district, or country</label>
+      <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="search-input" type="text" placeholder="Search city, district, or country..." autocomplete="off" role="combobox" aria-expanded="false" aria-controls="search-results" />
+      <div id="search-results" class="search-results" role="listbox" hidden></div>
+    </div>
+
+    <div class="header__controls">
+      <button id="connection-status" class="status-pill" type="button" aria-live="polite">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span class="status-pill__label">Live Global Data</span>
+      </button>
+
+      <span id="header-clock" class="header-clock mono-time" aria-live="off">--:--:--</span>
+      <div class="toggle-group" role="group" aria-label="Header clock reference">
+        <button class="toggle-btn is-active" data-ref-clock="utc" type="button">UTC</button>
+        <button class="toggle-btn" data-ref-clock="ist" type="button">IST</button>
+      </div>
+
+      <div class="toggle-group" role="group" aria-label="Temperature unit">
+        <button class="toggle-btn is-active" data-unit="c" type="button">°C</button>
+        <button class="toggle-btn" data-unit="f" type="button">°F</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= MAIN GRID ================= -->
+  <main class="main-grid">
+    <div class="map-column">
+
+      <!-- MAP -->
+      <section class="panel panel--map glass-map" aria-label="Interactive world map">
+        <div class="panel__head">
+          <h2>Interactive World Map</h2>
+          <div class="map-controls">
+            <button id="map-zoom-in" type="button" aria-label="Zoom in">+</button>
+            <button id="map-zoom-out" type="button" aria-label="Zoom out">−</button>
+            <button id="map-reset" type="button" aria-label="Reset map view">↻</button>
+            <button id="map-locate" type="button" aria-label="Use my location">◎</button>
+          </div>
+        </div>
+        <div class="map-wrap">
+          <svg id="world-map" viewBox="0 0 960 500" role="img" aria-label="World map, click a country to view its time and weather"></svg>
+          <div id="map-tooltip" class="map-tooltip" hidden></div>
+          <div id="map-loading" class="map-loading">
+            <div class="shimmer-line" style="width:60%"></div>
+            <p>Loading world map...</p>
+          </div>
+        </div>
+
+        <div class="chip-rows">
+          <div class="chip-row" id="favorites-row" aria-label="Favorite locations">
+            <span class="chip-row__label">Favorites</span>
+            <div class="chip-list" id="favorites-list"></div>
+          </div>
+          <div class="chip-row" id="recents-row" aria-label="Recently viewed locations">
+            <span class="chip-row__label">Recent</span>
+            <div class="chip-list" id="recents-list"></div>
+            <button id="clear-recents" class="chip-clear" type="button" hidden>Clear</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel glass glass-data map-snapshot" aria-label="Selected location snapshot">
+        <div class="panel__head">
+          <h2>Selected Snapshot</h2>
+          <span class="eyebrow" id="snapshot-location">Loading...</span>
+        </div>
+        <div class="snapshot-grid">
+          <div class="snapshot-tile snapshot-tile--time">
+            <span class="snapshot-tile__label">Local Time</span>
+            <strong id="snapshot-time" class="mono-time">--:--:--</strong>
+            <small id="snapshot-date">—</small>
+          </div>
+          <div class="snapshot-tile">
+            <span class="snapshot-tile__label">Temperature</span>
+            <strong id="snapshot-temp">--°</strong>
+            <small id="snapshot-condition">Weather loading</small>
+          </div>
+          <div class="snapshot-tile">
+            <span class="snapshot-tile__label">Wind</span>
+            <strong id="snapshot-wind">-- km/h</strong>
+            <small id="snapshot-humidity">Humidity --%</small>
+          </div>
+          <div class="snapshot-tile">
+            <span class="snapshot-tile__label">Daylight</span>
+            <strong id="snapshot-daylight">--h --m</strong>
+            <small id="snapshot-sun">Sun data loading</small>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel glass glass-alerts map-alerts" aria-label="Weather alerts">
+        <div class="panel__head"><h2>Weather Alerts</h2></div>
+        <div id="alerts-status" class="notice-card alert-card notice-card--neutral">
+          <div class="alert-card__main">
+            <span class="alert-card__badge">Checking</span>
+            <div>
+              <div class="notice-card__title">Weather Status</div>
+              <div class="notice-card__body">Checking verified severe-weather alert sources...</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- LOCATION / INDIA SIDEBAR -->
+    <aside class="sidebar" aria-label="Location details">
+
+      <!-- Selected location clock + weather -->
+      <div class="panel glass glass-location card-location">
+        <div class="card-location__top">
+          <div>
+            <p class="eyebrow" id="sel-country-flag-name">—</p>
+            <h2 id="sel-city-name">Loading...</h2>
+          </div>
+          <button id="fav-toggle" class="icon-btn" type="button" aria-pressed="false" aria-label="Add to favorites">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 17.3 6.2 20.6l1.1-6.6-4.8-4.7 6.6-1L12 2.6l2.9 5.7 6.6 1-4.8 4.7 1.1 6.6Z"/></svg>
+          </button>
+        </div>
+
+        <div class="clock-display">
+          <span id="sel-time" class="clock-digits">--:--:--</span>
+          <span id="sel-date" class="clock-date">—</span>
+        </div>
+
+        <div class="tz-row">
+          <span id="sel-tz-name">—</span>
+          <span class="dot-sep">·</span>
+          <span id="sel-tz-offset">—</span>
+        </div>
+
+        <div class="india-compare" id="india-compare">
+          <div class="india-compare__loc">
+            <span class="eyebrow">India · IST</span>
+            <span id="india-time" class="mono-time">--:--:--</span>
+          </div>
+          <div class="india-compare__diff" id="time-diff-badge">—</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div id="weather-error" class="inline-error" hidden></div>
+
+        <div class="weather-hero">
+          <div class="weather-hero__icon" id="weather-icon" aria-hidden="true"></div>
+          <div class="weather-hero__temp">
+            <span id="temp-value" class="skeleton-text">--°</span>
+            <span id="feels-like" class="feels-like">Feels like --°</span>
+          </div>
+          <p id="weather-condition" class="weather-condition">—</p>
+        </div>
+
+        <div class="metric-grid">
+          <div class="metric"><span class="metric__label">Humidity</span><span id="m-humidity" class="metric__value">--%</span></div>
+          <div class="metric"><span class="metric__label">Wind</span><span id="m-wind" class="metric__value">-- km/h</span></div>
+          <div class="metric"><span class="metric__label">Pressure</span><span id="m-pressure" class="metric__value">-- hPa</span></div>
+          <div class="metric"><span class="metric__label">Visibility</span><span id="m-visibility" class="metric__value">-- km</span></div>
+          <div class="metric"><span class="metric__label">UV Index</span><span id="m-uv" class="metric__value">--</span></div>
+          <div class="metric"><span class="metric__label">Cloud Cover</span><span id="m-cloud" class="metric__value">--%</span></div>
+        </div>
+      </div>
+
+      <!-- Sun / Moon -->
+      <div class="panel glass glass-astro card-sun-moon">
+        <div class="split-card">
+          <div class="split-card__half">
+            <p class="eyebrow">Sun</p>
+            <div class="sun-path" id="sun-path">
+              <svg viewBox="0 0 220 90" width="100%" height="70">
+                <path d="M10,80 A100,100 0 0 1 210,80" fill="none" stroke="url(#sunArc)" stroke-width="1.5" stroke-dasharray="2 4"/>
+                <defs><linearGradient id="sunArc" x1="0" x2="1"><stop offset="0" stop-color="#38BDF8"/><stop offset="1" stop-color="#22D3EE"/></linearGradient></defs>
+                <circle id="sun-indicator" cx="10" cy="80" r="5" fill="#FACC15"/>
+              </svg>
+            </div>
+            <div class="kv-row"><span>Sunrise</span><strong id="sunrise-val">--:--</strong></div>
+            <div class="kv-row"><span>Sunset</span><strong id="sunset-val">--:--</strong></div>
+            <div class="kv-row"><span>Daylight</span><strong id="daylight-val">--h --m</strong></div>
+          </div>
+          <div class="split-card__half">
+            <p class="eyebrow">Moon</p>
+            <div class="moon-face" id="moon-face" aria-hidden="true"></div>
+            <div class="kv-row"><span>Phase</span><strong id="moon-phase-val">—</strong></div>
+            <div class="kv-row"><span>Illumination</span><strong id="moon-illum-val">--%</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Wind + UV + Humidity -->
+      <div class="panel glass glass-metrics card-trio">
+        <div class="trio__item">
+          <p class="eyebrow">Wind</p>
+          <div class="compass" id="compass">
+            <svg viewBox="0 0 100 100" width="86" height="86">
+              <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(148,197,255,0.25)" stroke-width="1"/>
+              <text x="50" y="12" text-anchor="middle" class="compass-label">N</text>
+              <text x="92" y="54" text-anchor="middle" class="compass-label">E</text>
+              <text x="50" y="94" text-anchor="middle" class="compass-label">S</text>
+              <text x="8" y="54" text-anchor="middle" class="compass-label">W</text>
+              <g id="compass-needle" transform="rotate(0 50 50)">
+                <line x1="50" y1="50" x2="50" y2="14" stroke="#38BDF8" stroke-width="3" stroke-linecap="round"/>
+                <circle cx="50" cy="50" r="4" fill="#38BDF8"/>
+              </g>
+            </svg>
+          </div>
+          <p class="trio__value"><span id="wind-speed-val">--</span> km/h <span id="wind-dir-val" class="trio__sub">—</span></p>
+        </div>
+
+        <div class="trio__item">
+          <p class="eyebrow">UV Index</p>
+          <p class="trio__big" id="uv-value">--</p>
+          <p class="trio__sub" id="uv-label">—</p>
+          <div class="uv-bar"><div class="uv-bar__fill" id="uv-bar-fill"></div><div class="uv-bar__marker" id="uv-bar-marker"></div></div>
+          <div class="uv-scale"><span>Low</span><span>Mod</span><span>High</span><span>V.High</span><span>Extreme</span></div>
+        </div>
+
+        <div class="trio__item">
+          <p class="eyebrow">Humidity</p>
+          <div class="humidity-ring" id="humidity-ring">
+            <svg viewBox="0 0 100 100" width="86" height="86">
+              <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(148,197,255,0.15)" stroke-width="8"/>
+              <circle id="humidity-arc" cx="50" cy="50" r="42" fill="none" stroke="#22D3EE" stroke-width="8" stroke-linecap="round" transform="rotate(-90 50 50)"/>
+              <text x="50" y="56" text-anchor="middle" id="humidity-pct-text" class="humidity-text">--%</text>
+            </svg>
+          </div>
+          <p class="trio__sub">Dew point <span id="dew-point-val">--°</span></p>
+        </div>
+      </div>
+
+    </aside>
+  </main>
+
+  <!-- ================= FORECAST ================= -->
+  <section class="panel glass glass-forecast panel--forecast" aria-label="5 day forecast">
+    <div class="panel__head">
+      <h2>5-Day Forecast</h2>
+      <span class="eyebrow" id="forecast-loc-label">—</span>
+    </div>
+    <div class="forecast-row" id="forecast-row">
+      <div class="forecast-card is-loading" aria-hidden="true"><div class="shimmer-line"></div></div>
+      <div class="forecast-card is-loading" aria-hidden="true"><div class="shimmer-line"></div></div>
+      <div class="forecast-card is-loading" aria-hidden="true"><div class="shimmer-line"></div></div>
+      <div class="forecast-card is-loading" aria-hidden="true"><div class="shimmer-line"></div></div>
+      <div class="forecast-card is-loading" aria-hidden="true"><div class="shimmer-line"></div></div>
+    </div>
+  </section>
+
+  <!-- ================= CHART + ATMOSPHERE ================= -->
+  <section class="bottom-grid">
+    <div class="panel glass glass-chart panel--chart" aria-label="Temperature trend">
+      <div class="panel__head">
+        <h2>Temperature Trend</h2>
+        <span class="eyebrow">Next 24 hours</span>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="temp-chart"></canvas>
+        <div id="chart-tooltip" class="chart-tooltip" hidden></div>
+      </div>
+    </div>
+
+    <div class="panel glass glass-atmos panel--atmosphere" aria-label="Atmospheric metrics">
+      <div class="panel__head"><h2>Atmosphere</h2></div>
+      <div class="atmo-grid">
+        <div class="atmo-card"><span class="atmo-card__label">Precipitation</span><span id="a-precip" class="atmo-card__value">-- mm</span></div>
+        <div class="atmo-card"><span class="atmo-card__label">Rain Chance</span><span id="a-rainprob" class="atmo-card__value">--%</span></div>
+        <div class="atmo-card"><span class="atmo-card__label">Gusts</span><span id="a-gust" class="atmo-card__value">-- km/h</span></div>
+        <div class="atmo-card"><span class="atmo-card__label">Cloud Cover</span><span id="a-cloud" class="atmo-card__value">--%</span></div>
+        <div class="atmo-card"><span class="atmo-card__label">Pressure</span><span id="a-pressure" class="atmo-card__value">-- hPa</span></div>
+        <div class="atmo-card"><span class="atmo-card__label">Visibility</span><span id="a-visibility" class="atmo-card__value">-- km</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel glass glass-news panel--news" aria-label="Latest news">
+    <div class="panel__head">
+      <h2 id="news-title">Latest From Location</h2>
+      <button id="news-refresh" class="mini-action" type="button">Refresh News</button>
+    </div>
+    <div class="news-filters" role="tablist" aria-label="News category filters">
+      <button class="news-filter is-active" data-news-category="all" type="button">All</button>
+      <button class="news-filter" data-news-category="local" type="button">Local</button>
+      <button class="news-filter" data-news-category="world" type="button">World</button>
+      <button class="news-filter" data-news-category="business" type="button">Business</button>
+      <button class="news-filter" data-news-category="technology" type="button">Technology</button>
+      <button class="news-filter" data-news-category="science" type="button">Science</button>
+      <button class="news-filter" data-news-category="sports" type="button">Sports</button>
+      <button class="news-filter" data-news-category="politics" type="button">Politics</button>
+      <button class="news-filter" data-news-category="entertainment" type="button">Entertainment</button>
+      <button class="news-filter" data-news-category="health" type="button">Health</button>
+    </div>
+    <div id="news-content" class="news-content"></div>
+  </section>
+
+  <section class="panel glass glass-compare panel--compare" aria-label="Multi-location comparison">
+    <div class="panel__head">
+      <h2>Compare</h2>
+      <div class="compare-actions">
+        <button id="compare-add" class="mini-action" type="button">Add Current</button>
+        <button id="compare-clear" class="mini-action mini-action--quiet" type="button">Clear</button>
+      </div>
+    </div>
+    <div class="compare-table-wrap">
+      <table class="compare-table">
+        <thead>
+          <tr><th>Location</th><th>Local Time</th><th>India Time</th><th>Temp</th><th>Weather</th><th>Humidity</th><th>Wind</th><th>UV</th><th></th></tr>
+        </thead>
+        <tbody id="compare-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+<script src="script.js?v=20260830-perfect-glass-1"></script>
+</body>
+</html>
+
